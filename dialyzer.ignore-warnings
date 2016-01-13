@@ -1,0 +1,15 @@
+thrift
+  fdsrv:bind_socket/2
+  fdsrv:start/0
+  fdsrv:stop/0
+  jsx:parser/0
+  jsx:term_to_json/2
+tprot
+Function servicePerformance/2 has no local return
+The specification for status:servicePerformance/2 states that the function might also return [{'performanceData','undefined' | {'timeStamp',integer(),integer()},'undefined' | integer(),'undefined' | integer(),'undefined' | [any()]}] but the inferred return is none()
+Function servicePerformance/2 has no local return
+Record construction #session{port::'undefined' | integer(),client::'_'} violates the declared type of field client::'undefined' | binary()
+The specification for status:hostProfiles/0 states that the function might also return [{'hostProfile','undefined' | binary() | string(),'undefined' | {'timeStamp',integer(),integer()},'undefined' | {'timeStamp',integer(),integer()},'undefined' | dict:dict(_,_)}] but the inferred return is none()
+Function hostProfiles/0 has no local return
+Record construction #hostProfile{key::'_',activeSince::'_',lastActive::'_',sps::'_'} violates the declared type of field key::'undefined' | binary() | string() and activeSince::'undefined' | #timeStamp{seconds::integer(),micro::integer()} and lastActive::'undefined' | #timeStamp{seconds::integer(),micro::integer()} and sps::'undefined' | dict:dict(_,_)
+The inferred type for the 2nd argument of handle_event/3 (fun((_,_) -> any())) is not a supertype of atom(), which is expected type for this argument in the callback of the gen_fsm behaviour

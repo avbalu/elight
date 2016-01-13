@@ -1,0 +1,24 @@
+%%-*-erlang-*-
+
+Validate_ip = fun(<<"0.0.0.0">>) -> 
+		      false;
+		 (<<"255.255.255.255">>) -> 
+		      false;
+		 (Bin) -> 
+		      {ok,IP} = inet_parse:address(list_to_binary(Bin)),
+		      size(IP) == 4;
+		 (_X) ->
+		      false
+	      end,
+[
+ {config, 
+  session_mgrs, 
+  fun(L) ->  
+	  lists:takewhile(validate_ip, L)
+  end, 
+  fun(L) -> 
+	  [inet_parse:address(list_to_binary(X)) || X <- L]
+  end,
+  []
+ }
+].

@@ -1,0 +1,69 @@
+/*
+%%%-------------------------------------------------------------------
+%%% @author adoor balasubramanian <balu@localhost.localdomain>
+%%% @copyright (C) 2014, adoor balasubramanian
+%%% @doc
+%%% Monitors one ethernet interface
+%%% Keep this code minimal just  to handle the I/O
+%%% @end
+%%% Created : 27 Dec 2014 by adoor balasubramanian <balu@localhost.localdomain>
+%%%-------------------------------------------------------------------*/
+
+#include <stdio.h>
+#include <pcap.h>
+#include <errno.h>
+#include <stdlib.h>
+
+void write_fill(const void *buf, size_t size) {
+  int writtenSoFar = 0;
+  while (writtenSoFar < size) {
+    int written =  write(1, buf, size) ;
+    if (written == -1 && errno != EINTR) {
+      fprintf(stderr, "monitor:write_fill : write failed with errno %d\n",
+	      errno);
+      exit(EXIT_FAILURE);
+    }
+    writtenSoFar += written;
+  }
+}
+void callback(u_char *user, const struct pcap_pkthdr *h,
+		  const u_char *bytes) {
+  write_fill(h,sizeof(struct pcap_pkthdr));
+  write_fill(bytes, h->caplen);
+}
+
+    
+int main(int argc, char *argv[])
+{
+  pcap_t *p;		/* Session handle */
+  char *dev;		/* Device to sniff on */
+  char errbuf[PCAP_ERRBUF_SIZE];	/* Error string */
+
+  if (argc != 2) {
+    fprintf(stderr, "Usage : monitor <device>\n");
+    return 2;
+  }
+  
+  dev = argv[1];
+  p = pcap_open_live(dev, BUFSIZ, 1, 1000, errbuf);
+  if (p == NULL) {
+    fprintf(stderr, "Couldn't open device %s: %s\n", dev, errbuf);
+    pcap_perror(p, "official info: ");
+    fprintf(stderr, "Treating it as a pcap file\n");
+    p = pcap_open_offline(dev, errbuf);
+    if ( p == NULL ) {
+      fprintf(stderr, "Couldn't open file %s: %s\n", dev, errbuf);
+      pcap_perror(p, "official info: ");
+      return(2);
+    }
+  }
+
+  if (pcap_loop(p, -1, callback, NULL) == -1){
+    fprintf(stderr, "monitor:main : pcap_loop failed with errno %d\n",
+	    errno);
+    pcap_perror(p, "official info: ");
+    return 2;
+  }
+  fprintf(stderr, "monitor:main : pcap_loop returned ! \n");
+  return(0);
+}

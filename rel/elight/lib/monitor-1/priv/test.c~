@@ -1,0 +1,11 @@
+#include <stdlib.h>
+typedef   union {
+    u_short i;
+    u_char buf[2];
+} U;
+main()
+{
+  U u;
+  u.i = 1500;
+  printf("%c %c \n",u.buf[0],u.buf[1]);
+}

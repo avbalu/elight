@@ -1,0 +1,17 @@
+{application, api,
+ [
+  {description, "The world interfaces with elight using this application"},
+  {vsn, "1"},
+  {applications, [
+                  kernel,
+                  stdlib,
+		  thrift,
+		  configdb,
+		  controller
+                 ]
+  },
+  {mod, { api_app, [] } },
+  {env, [ 
+	]
+  }
+ ]}.

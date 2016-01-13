@@ -1,0 +1,8 @@
+unexpected Event 
+
+{s_ack,4501,524}
+
+ received by session with Session Data =
+
+[{session_key,{443,49731,<<10,0,0,11>>,<<74,125,224,1>>}},{sniffer,p2p1},{session,{session,<<74,125,224,1>>,443,<<10,0,0,11>>}},{t_start,{timeStamp,1423789912,909980}},{latency,31666},{end_cause,undefined},{retrans,0},{transaction,{transaction,{timeStamp,1423789912,997920},undefined,0,0,148,1,undefined,0}},{transactions,[{transaction,{timeStamp,1423789912,983717},undefined,230,1,126,1,undefined,0},{transaction,{timeStamp,1423789912,942493},61914,4270,3,249,1,undefined,0}]},{cseq0,580497328},{cseq,376},{cseq_next,524},{sseq0,2089698940},{sseq,4271},{sseq_next,4501},{states,[aw_request,aw_request,aw_request,aw_request,aw_request,aw_request,aw_request,aw_request,aw_request,aw_request,aw_first_response,aw_first_response,established,aw_ack_syn_ack]},{t_last_msg,{timeStamp,1423789913,50025}},{pcap_records,[]},{filters,[]}]
+

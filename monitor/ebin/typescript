@@ -1,0 +1,69 @@
+Script started on Wed 31 Dec 2014 04:50:55 AM PST
+]0;balu@localhost:~/elight/lib/monitor/ebin]7;file://localhost.localdomain/home/balu/elight/lib/monitor/ebin[?1034h[balu@localhost ebin]$  erl -boot start_sasl -eval "application:start(mi tor)"
+Erlang/OTP 17 [erts-6.2] [source] [64-bit] [smp:4:4] [async-threads:10] [hipe] [kernel-poll:false]
+
+
+=PROGRESS REPORT==== 31-Dec-2014::04:51:01 ===
+          supervisor: {local,sasl_safe_sup}
+             started: [{pid,<0.35.0>},
+                       {name,alarm_handler},
+                       {mfargs,{alarm_handler,start_link,[]}},
+                       {restart_type,permanent},
+                       {shutdown,2000},
+                       {child_type,worker}]
+
+=PROGRESS REPORT==== 31-Dec-2014::04:51:01 ===
+          supervisor: {local,sasl_safe_sup}
+             started: [{pid,<0.36.0>},
+                       {name,overload},
+                       {mfargs,{overload,start_link,[]}},
+                       {restart_type,permanent},
+                       {shutdown,2000},
+                       {child_type,worker}]
+
+=PROGRESS REPORT==== 31-Dec-2014::04:51:01 ===
+          supervisor: {local,sasl_sup}
+             started: [{pid,<0.34.0>},
+                       {name,sasl_safe_sup},
+                       {mfargs,
+                           {supervisor,start_link,
+                               [{local,sasl_safe_sup},sasl,safe]}},
+                       {restart_type,permanent},
+                       {shutdown,infinity},
+                       {child_type,supervisor}]
+
+=PROGRESS REPORT==== 31-Dec-2014::04:51:01 ===
+          supervisor: {local,sasl_sup}
+             started: [{pid,<0.37.0>},
+                       {name,release_handler},
+                       {mfargs,{release_handler,start_link,[]}},
+                       {restart_type,permanent},
+                       {shutdown,2000},
+                       {child_type,worker}]
+
+=PROGRESS REPORT==== 31-Dec-2014::04:51:01 ===
+         application: sasl
+          started_at: nonode@nohost
+Eshell V6.2  (abort with ^G)
+1> creator:ts  start("file", "/home/balu/wireshar/ k/w.pcapng")[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C.
+** exception exit: {noproc,
+                       {gen_server,call,
+                           [creator,
+                            {monitor,"file",
+                                "/home/balu/wireshark/w.pcapng"}]}}
+     in function  gen_server:call/2 (gen_server.erl, line 182)
+2>    2> creator:start("file", "/home/balu/wireshark/w.pcapng").
+** exception exit: {noproc,
+                       {gen_server,call,
+                           [creator,
+                            {monitor,"file",
+                                "/home/balu/wireshark/w.pcapng"}]}}
+     in function  gen_server:call/2 (gen_server.erl, line 182)
+3> 
+BREAK: (a)bort (c)ontinue (p)roc info (i)nfo (l)oaded
+       (v)ersion (k)ill (D)b-tables (d)istribution
+a
+]0;balu@localhost:~/elight/lib/monitor/ebin]7;file://localhost.localdomain/home/balu/elight/lib/monitor/ebin[balu@localhost ebin]$ exit
+exit
+
+Script done on Wed 31 Dec 2014 04:52:28 AM PST

@@ -1,0 +1,6 @@
+=INFO REPORT====
+thrift service listening on port
+    application: 
+    exited: stopped
+    exited: killed
+    type: temporary

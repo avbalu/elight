@@ -1,0 +1,8 @@
+unexpected Event 
+
+{s_pkt,2897,226,496,{timeStamp,1423805980,994164}}
+
+ received by session with Session Data =
+
+[{session_key,{443,50024,<<10,0,0,11>>,<<184,51,102,18>>}},{sniffer,'/home/balu/elight/lib/filer/cabinet/debug/session/unexpected/1.pcap'},{session,{session,<<184,51,102,18>>,443,<<10,0,0,11>>}},{t_start,{timeStamp,1423805980,892177}},{latency,38730},{end_cause,undefined},{retrans,0},{transaction,{transaction,{timeStamp,1423805980,961135},101611,1448,1,225,1,undefined,0}},{transactions,[]},{cseq0,2869140913},{cseq,1},{cseq_next,226},{sseq0,567676820},{sseq,1},{sseq_next,1449},{states,[aw_request,aw_request,aw_request,aw_first_response,aw_first_response,established,aw_ack_syn_ack]},{t_last_msg,{timeStamp,1423805980,994164}},{pcap_records,[]},{filters,[]}]
+

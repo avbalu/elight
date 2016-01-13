@@ -1,0 +1,31 @@
+%%%-------------------------------------------------------------------
+%%% @author adoor balasubramanian <balu@localhost.localdomain>
+%%% @copyright (C) 2015, adoor balasubramanian
+%%% @doc
+%%%
+%%% @end
+%%% Created : 21 Jan 2015 by adoor balasubramanian <balu@localhost.localdomain>
+%%%-------------------------------------------------------------------
+-module(log).
+
+-include("../../common/common.hrl").
+-include_lib("eunit/include/eunit.hrl").
+-include("../../api/gen-erl/api_types.hrl").
+
+-spec file(Filter :: #filter{},
+	   Frames :: [binary()]) -> ok.
+
+-spec alert(Filter :: #filter{}, Data :: binary()) -> 
+		   ok.
+
+-spec log(SU :: #session_update{},
+	  Filters :: [#filter{}],
+	  Frames :: [binary()]) ->
+		 ok.
+-spec filename(FilterId :: integer(), Count :: integer()) ->
+		      string().
+
+-spec check_file_limit(FilterId :: integer(),
+		       Limit :: integer(),
+		       Path :: string()) ->
+			      boolean().

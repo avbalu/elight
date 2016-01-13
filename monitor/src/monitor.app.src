@@ -1,0 +1,13 @@
+{application, monitor,
+ [
+  {description, "Traffic Monitor"},
+  {vsn, "1"},
+  {applications, [
+                  kernel,
+                  stdlib,
+		  controller,
+		  configdb
+                 ]
+  },
+  {mod, { monitor_app, [] } }
+ ]}.

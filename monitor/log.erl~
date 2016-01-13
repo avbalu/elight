@@ -1,0 +1,29 @@
+%%%-------------------------------------------------------------------
+%%% @author adoor balasubramanian <balu@localhost.localdomain>
+%%% @copyright (C) 2015, adoor balasubramanian
+%%% @doc multi purpose log utility module
+%%% Does prcoessing of filters, matching the conditions and doing the
+%%% actions.
+%% The filters are sent to session by monitor
+%% All monitors have a copy of filters
+%% When Filters are modified all monitors need to be updated
+%% There are three kinds of fields in the filter
+%% 1) client, server, proto and port - these can be simply matched against
+%% the syn packet
+%% 2) latencies - these can be matched by session during the session
+%%% 3) average and peak latencies - These can be matched by admin during 
+%%% session_update. In this case there is no need to log the session traffic
+%%%  as this session
+%%% is just the last straw and the root cause
+
+%%% This is not a process
+%%% This code runs in the context of session processes
+%%% @end
+%%% Created : 21 Jan 2015 by adoor balasubramanian <balu@localhost.localdomain>
+%%%-------------------------------------------------------------------
+-module(log).
+
+%% @doc match
+%% given a syn packet, and Filter list return the matching filter id
+%% if any.
+

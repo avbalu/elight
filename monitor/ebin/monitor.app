@@ -1,0 +1,10 @@
+{application,monitor,
+             [{registered,[]},
+              {description,"Traffic Monitor"},
+              {vsn,"1"},
+              {applications,[kernel,stdlib,controller,configdb]},
+              {mod,{monitor_app,[]}},
+              {modules,[action,action_tests,creator,match,monitor,monitor_app,
+                        monitor_sup,monitor_sup1,monitor_sup_tests,
+                        monitor_tests,session,session_tests,sniffer,
+                        sniffer_tests]}]}.

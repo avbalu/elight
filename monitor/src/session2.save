@@ -1,0 +1,569 @@
+%%%-------------------------------------------------------------------
+%%% @author adoor balasubramanian <balu@localhost.localdomain>
+%%% @copyright (C) 2014, adoor balasubramanian
+%%% @doc
+%%% The end_cause in #session_data{} represents the reason for session termination
+%%% When the session ends in aw_response state, the end_cause is not 
+%% normal even if some transactions ahve been completed succussfully 
+%% in the session.
+
+%%% when timeout occurs beforesession setup or
+%%% before any transaction has completed or while in aw_response state, 
+%%% end_cause will be set to timeout
+
+%%% in case of timeout, t_last_msg  is used to calculate session duration
+%%% 
+%%% @end
+%%% Created : 30 Dec 2014 by adoor balasubramanian <balu@localhost.localdomain>
+%%%-------------------------------------------------------------------
+-module(session1).
+
+-behaviour(gen_fsm).
+
+%% API
+%% API
+-export([start_link/2, send/2]).
+
+%% gen_fsm callbacks
+-export([init/1, state_name/2, state_name/3, handle_event/3,
+	 handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
+
+%% state functions
+-export([aw_syn_ack/2, aw_ack_syn_ack/2, established/2, aw_first_request/2,
+	aw_first_response/2, aw_request/2, aw_response/2]).
+
+-include("../../common/common.hrl").
+-include("../../filer/include/filer.hrl").
+-include("../../api/include/event_mgr.hrl").
+
+
+%%%===================================================================
+%%% gen fsm API
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates a gen_fsm process which calls Module:init/1 to
+%% initialize. To ensure a synchronized start-up procedure, this
+%% function does not return until Module:init/1 has returned.
+%%
+%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
+%% @end
+%%--------------------------------------------------------------------
+start_link(Args) ->
+    gen_fsm:start_link(?MODULE, [Args], []).
+
+%%%===================================================================
+%%% Session API
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%%% Event is a a message containing
+%%% packets from Network Device or pcap file
+%%% This API is used by sniffer to send messages to already created
+%%% session.
+-spec send(FsmRef :: pid(), Event :: #msg{}) -> ok.
+send(FsmRef, Event) when is_pid(FsmRef)->
+    gen_fsm:send_all_state_event(FsmRef, Event).
+
+%%%===================================================================
+%%% Internal Data Strutures
+%%%===================================================================
+
+%%% doc state()
+%%% session can be in any one of these states.
+-type state() :: aw_syn_ack | 
+		 aw_ack_syn_ack | 
+		 first_req |
+		 established |
+		 aw_first_request |
+		 aw_first_response |
+		 aw_response |
+		 aw_request |
+		 idle.
+
+
+%%% @doc event
+%%% used to transfer information from handle_cast to state functions
+-record(event, 
+	{type :: syn | syn_ack | c_ack | |s_ack | {session_end, end_cause()}
+		 | c_pkt | s_pkt,
+	 rseq :: non_neg_integer,
+	 rack :: non_neg_integer,
+	 l :: non_neg_integer(), % data length
+	 t :: #timeStamp{}}).
+
+%%% Doc
+%%% sdb - Session Data Block 
+%%% Internal state maintained by the fsm
+%%% Sequence Numbers are 
+%% used to indetify retransmissions
+%% seq and ack numbers are used to match response to request
+%%% cseq0, sseq0 - client & server initial sequence numbers. These are 
+%%% as they are receivced from syn and syn_ack
+%%% All other sequence numbers are stored relative to these.
+%%% cseq - sequence number from cleint packet last seen.
+%%% cseq_next - ack number from client packet last seen
+%%% sseq, seq_next are for the server
+%%% states - list containing states traversed by fsm - for debugging
+%% transaction is used to build stats for the current transaction
+%%    it is moved to transactions when one of the following two events 
+%% happen
+%%      1) A new client request (second or later) comes in, 
+%%         to make room for next transaction
+%%      2) When session ends, if teh current transaction is complete
+%% transactions are in reverse chrnological order
+%%%  
+
+-record(session_data, { session_key :: tuple(),
+		 sniffer :: pid(),
+		 session :: #session{},
+		 t_start :: time(),
+		 latency :: latency(),
+		 end_cause :: end_cause(),
+		 retrans = 0 :: non_neg_integer(),
+		 transaction = #transaction{} :: #transaction{},
+		 transactions = [] :: [#transaction{}],
+
+		 cseq0 :: non_neg_integer(),
+		 cseq :: non_neg_integer(),
+		 cseq_next :: non_neg_integer(),
+
+		 sseq0 :: non_neg_integer(),
+		 sseq :: non_neg_integer(),
+		 sseq_next :: non_neg_integer(),
+
+		 states = [] :: [state()], % in reverse order
+
+		 t_last_msg :: time(),
+		 pcap_records :: [binary()],
+		 filters :: [#filter{}]
+	       }).
+
+%% @doc next_state
+%% returned by each state function as expected by gen_fsm behaviour.
+-record(next_state, {
+	  next_state :: state(),
+	  sd :: #session_data{},
+	  timeout = ?MSG_TIMEOUT :: ?MSG_TIMEOUT}).
+
+
+%%%===================================================================
+%%% gen_fsm callbacks
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Whenever a gen_fsm is started using gen_fsm:start/[3,4] or
+%% gen_fsm:start_link/[3,4], this function is called by the new
+%% process to initialize.
+%%
+%% @spec init(Args) -> {ok, StateName, SessionData} |
+%%                     {ok, StateName, SessionData, Timeout} |
+%%                     ignore |
+%%                     {stop, StopReason}
+%% @end
+%%--------------------------------------------------------------------
+
+init(#init_msg{ sniffer = Name,
+		session_key = Key,
+		filters = Filters,
+		msg = #msg{ts = T, 
+			   sip = SIP, 
+			   dip = DIP, 
+			   dp = DP,
+			   seq = Seq,
+			   pcapr = R}) ->
+	    {ok, aw_syn_ack, 
+	     #session_data{ sniffer = Name,
+		     session_key = Key,
+		     session = #session{client = SIP, 
+					server = DIP, 
+					port = DP},
+		     t_start = T,
+		     cseq0 = Seq,
+		     cseq = 1,
+		     cseq_next = 1,
+		     t_last_msg = T,
+		     pcap_records = [PcapRec],
+		     filters = Filters
+		   },
+	     ?MSG_TIMEOUT}.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% There should be one instance of this function for each possible
+%% state name. Whenever a gen_fsm receives an event sent using
+%% gen_fsm:send_event/2, the instance of this function with the same
+%% name as the current state name StateName is called to handle
+%% the event. It is also called if a timeout occurs.
+%% In all States we need to take care of 
+%%
+%% timeout
+%% session end (FIN/RST)
+%% retransmission,
+%% just ACK without Data  
+%% TCP fragments/ message from unexpected direction
+%% normal case
+%% unexpected message
+%% 
+%% normal case - one that moves the fsm forward
+
+%% @spec   aw_syn_ack(Event, SessionData) ->
+%%                   {next_state, NextStateName, NextState} |
+%%                   {next_state, NextStateName, NextState, Timeout} |
+%%                   {stop, Reason, NewState}
+%% @end
+%%--------------------------------------------------------------------
+
+%% @doc aw_syn_ack
+%% syn message already received as part of session init
+-spec aw_syn_ack(Event :: timeout | #event{}, SDB :: #session_data{}) -> 
+			R :: #next_state{}.
+%% timeout
+aw_syn_ack(timeout, SessionData) ->
+    timeout(SessionData, no_syn_ack);
+
+%% session end (FIN/RST)
+aw_syn_ack(#session_end{cause = Cause}, SessionData) ->
+      end_session(Cause, SessionData, no_syn_ack);
+
+state_name(_Event, SessionData) ->
+    {next_state, state_name, SessionData}.
+-spec end_session(Cause :: end_cause(),
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% There should be one instance of this function for each possible
+%% state name. Whenever a gen_fsm receives an event sent using
+%% gen_fsm:sync_send_event/[2,3], the instance of this function with
+%% the same name as the current state name StateName is called to
+%% handle the event.
+%%
+%% @spec state_name(Event, From, SessionData) ->
+%%                   {next_state, NextStateName, NextState} |
+%%                   {next_state, NextStateName, NextState, Timeout} |
+%%                   {reply, Reply, NextStateName, NextState} |
+%%                   {reply, Reply, NextStateName, NextState, Timeout} |
+%%                   {stop, Reason, NewState} |
+%%                   {stop, Reason, Reply, NewState}
+%% @end
+%%--------------------------------------------------------------------
+state_name(_Event, _From, SessionData) ->
+    Reply = ok,
+    {reply, Reply, state_name, SessionData}.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Whenever a gen_fsm receives an event sent using
+%% gen_fsm:send_all_state_event/2, this function is called to handle
+%% the event.
+%%
+%% @spec handle_event(Event, StateName, SessionData) ->
+%%                   {next_state, NextStateName, NextState} |
+%%                   {next_state, NextStateName, NextState, Timeout} |
+%%                   {stop, Reason, NewState}
+%% @end
+%%--------------------------------------------------------------------
+
+%% SYN retransmission
+aw_syn_ack(syn, SessionData) ->
+    #next_state{name = aw_syn_ack,
+		state = control_retrans(SessionData)};
+
+%% normal case
+aw_syn_ack( #syn_ack{t = T seq = Seq}, 
+	    #session_data{t_start = T0} = SessionData) ->
+    #next_state{name = aw_ack_syn_ack,
+		state = SessionData#session_data{ latency = latency(T0,T),
+					    sseq0 = Seq,
+					    sseq = 1,
+					    sseq_next = 1});
+    
+%% retransmission,
+aw_ack_syn_ack(Event, SessionData) 
+  when Event =:= syn; is_record(syn_ack,Event)->    
+    #next_state{name = aw_ack_syn_ack,
+		state = control_retrans(SessionData)};
+
+%% normal case
+aw_ack_syn_ack(#c_ack{}, SessionData) -> 
+    #next_state{name = established,
+		state = SessionData};
+
+%% retransmission,
+established(#syn_ack{}, SessionData) ->
+    #next_state{name = established,
+		state = control_retrans(SessionData)};
+
+%% normal case
+%% Server Greeting
+%% unsolicited
+%% usually comes before client request
+established(#s_pkt{rseq = 1, rack = 1, l = L}, SessionData) ->
+    #next_state{name = aw_first_request,
+		state = tx(SessionData, L)};
+    
+%% normal case
+%% client first Request
+established(#c_pkt{rseq = 1, rack = 1, l = L}, SessionData) ->    
+    NewState = rx(SessionData#session_data{
+		    transaction = #transaction{t_start = T}},
+		  L),
+    #next_state{name = aw_first_response,
+		state = NewState};
+
+%% retransmission
+%% Server greetings
+aw_first_request(
+  #s_pkt{rseq = Seq, l = L},
+  #session_data{sseq = Seq} = SessionData) ->
+    NewState = data_retrans(tx_stats(SessionData, L)),
+    #next_state{name = aw_first_request,
+		state = NewState};
+
+%% just ACK without Data  
+%% from client to server greetings
+aw_first_request(
+  #c_ack{rseq = 1, rack = Ack},
+  #session_data{sseq_next = Ack} = SessionData) ->
+    #next_state{name = aw_first_request, state = SessionData};
+
+%% TCP fragments/ message from unexpected direction
+%% We assume that serevr greetings usually fits in one TCP Segment
+
+%% normal case
+%% client Request
+aw_first_request(
+  #c_pkt{rseq = 1, rack = Ack, l = L},
+  #session_data{sseq_next = Ack} = SessionData) ->
+    NewState = rx(SessionData#session_data{ 
+		    transaction = 
+			#transaction{t_start = T}}, 
+		  L),
+    #next_state{name = aw_first_response,
+		state = NewState};
+
+
+%% retransmission
+%% client request
+aw_first_response(
+  #c_pkt{rseq = 1, rack = Ack},
+  #session_data{sseq_next = Ack} = SessionData) ->
+    #next_state{name = aw_first_response,
+		state = data_retrans(SessionData)};
+	 
+%% just ACK without Data  
+%% ack from server for client request
+aw_first_response(
+  #s_ack{rseq = Seq, rack = Ack},
+  #session_data{sseq = Seq}) ->
+    #next_state{name = aw_first_response, state = SessionData};
+    
+%% TCP fragments/ message from unexpected direction
+%% case - first request did not fit in a single TCP segment
+%%      say , for e.g. HTTP Post
+aw_first_response(
+  #c_pkt{rseq = Seq, rack = Ack, l = L},
+  #session_data{cseq_next = Seq, sseq_next = Ack}) ->
+    #new_state{name = aw_first_response,
+	       state = cseq(SessionData, L)};
+
+%% normal case
+%% first response from server
+%% server may not be responding to client's latest request
+%%     Hence the inequality Ack =< CSeqN
+%%     See irdmi pcap 
+aw_first_response(
+  #s_pkt{rseq = Seq, rack = Ack, l = L},
+  #session_data{sseq_next = Seq, cseq_next = CSeqN}) 
+  when Ack =< CSeqN -> 
+    NewTr = Tr#transaction{latency = latency(T0, T)},
+    NewState = sseq(SessionData#session_data{transaction = NewTr}),
+    #next_state{name = aw_request, NewState};
+aw_first_response() -> 
+
+
+-type event() :: syn | 
+		 {session_end, end_cause()},
+		 #syn_ack{} |
+		 #c_ack{} |
+		 #s_ack{} |
+		 #c_data{} |
+		 #s_data{}.
+
+-record(session_end, 
+	cause :: end_casue() }).		 
+
+-record(syn_ack, {t :: #timeStamp{},
+		  seq :: seq()}).
+
+-record(c_ack, {rseq :: seq(),
+		rack :: seq()}.
+
+-record(s_ack,  {rseq :: seq(),
+		rack :: seq()}.
+
+-record(c_pkt, {rseq :: seq(),
+		 rack :: seq(),
+		 l :: non_neg_integer(),
+		 t :: #timeStamp{}}).
+
+-record(s_pkt, {rseq :: seq(),
+		 rack :: seq(),
+		 l :: non_neg_integer(),
+		 t :: #timeStamp{}}).
+
+
+
+
+handle_event(
+  #msg{sip = SIP, 
+       dip = DIP, 
+       ts = T, 
+       seq = Seq,
+       ack = Ack,
+       data_len = DataLen,
+       pcapr = PcapRecord, 
+       a = A, s = S, f = F, r = R},
+  StateName, 
+  #session_data{session = #session{client = C},
+	 cseq0 = CSeq0, 
+	 sseq0 = SSeq0,
+	 states = States,
+	 pcap_records = PcapRecords} = SessionData) ->
+
+    ClientPkt = (C =:= SIP),
+    AckOnly = (DataLen =:= 0),
+
+    {Seq0, RAck0} = seq(ClientPkt, CSeq0, SSeq0),
+    RSeq = Seq - Seq0,
+    RAck = Ack - Ack0,
+
+    Event = if R =:= 1; F =:= 1 -> #session_end{cause = end_cause()};
+	       S =:= 1, A =:= 0 -> syn;
+	       S =:= 1, A =:= 1 -> #syn_ack{ t = T, seq = Seq };
+	       AckOnly, ClientPkt, Ack =:= 1 -> ack_syn_ack;
+	       AckOnly, ClientPkt -> c_ack;
+	       AckOnly -> s_ack;
+	       ClientPkt -> #c_pkt{rseq = RSeq,
+				   rack = RAck,
+				   l = DataLen,
+				   t = T};
+	       true -> #s_pkt{rseq = RSeq,
+			      rack = RAck,
+			      l = DataLen,
+			      t = T}
+	    end,
+ 
+    NewState = SessionData#session_data{ states = [StateName | States],
+			  t_last_msg = #timeStamp{seconds = Seconds,
+						  micro = Micro},
+			  pcap_records = [PacpRecord|PcapRecords]},
+    
+    StateName(Event, NewState).
+
+
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Whenever a gen_fsm receives an event sent using
+%% gen_fsm:sync_send_all_state_event/[2,3], this function is called
+%% to handle the event.
+%%
+%% @spec handle_sync_event(Event, From, StateName, SessionData) ->
+%%                   {next_state, NextStateName, NextState} |
+%%                   {next_state, NextStateName, NextState, Timeout} |
+%%                   {reply, Reply, NextStateName, NextState} |
+%%                   {reply, Reply, NextStateName, NextState, Timeout} |
+%%                   {stop, Reason, NewState} |
+%%                   {stop, Reason, Reply, NewState}
+%% @end
+%%--------------------------------------------------------------------
+handle_sync_event(_Event, _From, StateName, SessionData) ->
+    Reply = ok,
+    {reply, Reply, StateName, SessionData}.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% This function is called by a gen_fsm when it receives any
+%% message other than a synchronous or asynchronous event
+%% (or a system message).
+%%
+%% @spec handle_info(Info,StateName,SessionData)->
+%%                   {next_state, NextStateName, NextState} |
+%%                   {next_state, NextStateName, NextState, Timeout} |
+%%                   {stop, Reason, NewState}
+%% @end
+%%--------------------------------------------------------------------
+handle_info(_Info, StateName, SessionData) ->
+    {next_state, StateName, SessionData}.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% This function is called by a gen_fsm when it is about to
+%% terminate. It should be the opposite of Module:init/1 and do any
+%% necessary cleaning up. When it returns, the gen_fsm terminates with
+%% Reason. The return value is ignored.
+%%
+%% @spec terminate(Reason, StateName, SessionData) -> void()
+%% @end
+%%--------------------------------------------------------------------
+terminate(_Reason, _StateName, _SessionData) ->
+    ok.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Convert process state when code is changed
+%%
+%% @spec code_change(OldVsn, StateName, SessionData, Extra) ->
+%%                   {ok, StateName, NewState}
+%% @end
+%%--------------------------------------------------------------------
+code_change(_OldVsn, StateName, SessionData, _Extra) ->
+    {ok, StateName, SessionData}.
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+
+control_retrans(#session_data{retrans = R} = SessionData) ->
+    SessionData#session_data{retrans = R+1).
+
+data_retrans(#session_data{transaction = #transaction{retrans = R} = Tr}) ->
+    SessionData#session_data{transaction = Tr#transaction{retrans = R + 1}}.
+
+tx_stats(#session_data{
+	    transaction = #transaction{rxbytes = RxB, rx_frames = RxF} 
+	    = Tr}, L) ->
+    SessionData#session_data{
+      transaction = Tr#transaction{rxbytes = RxB + L, 
+				   rx_frames = RxF + 1}}.
+rx_stats(#session_data{
+	    transaction = #transaction{txbytes = TxB, tx_frames = TxF} 
+	    = Tr}, L) ->
+    SessionData#session_data{
+      transaction = Tr#transaction{txbytes = TxB + L, 
+				   tx_frames = TxF + 1}}.
+
+cseq(#session_data{cseq_next = CSeqN} = SessionData, L) ->
+    SessionData#session_data{cseq = CSeqN, cseq_next = CSeqN + L}.
+
+rx(SessionData, L) ->
+    State1 = rx_stats(SessionData, L),
+    cseq(State1, L).
+
+end_cause(true, 1) -> c_rst;
+end_cause(true, 0) -> c_fin;
+end_cause(_, 1) -> s_rst;
+end_cause(_, 0) -> s_fin.

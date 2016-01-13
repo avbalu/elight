@@ -1,0 +1,36 @@
+%%%-------------------------------------------------------------------
+%%% @author adoor balasubramanian <balu@localhost.localdomain>
+%%% @copyright (C) 2015, adoor balasubramanian
+%%% @doc
+%%%
+%%% @end
+%%% Created : 28 Jan 2015 by adoor balasubramanian <balu@localhost.localdomain>
+%%%-------------------------------------------------------------------
+-module(monitor_sup_tests).
+
+-include_lib("eunit/include/eunit.hrl").
+
+init_test() ->
+    init([]).
+
+test_() ->
+    {setup,
+     fun setup/0,
+     fun cleanup/1,
+     fun test/1
+    }.
+
+setup() ->
+    test:setup().
+
+cleanup(X) ->
+    test:cleanup(X).
+
+test(_) ->
+    ?_test(reg()).
+
+reg() ->
+    L = erlang:registered(),
+    R = [monitor_sup, monitor_sup1, monitor, creator],
+    [ true = lists:member(X, L) || X <- R ].
+

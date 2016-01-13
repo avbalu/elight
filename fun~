@@ -1,0 +1,2 @@
+%%-*-erlang-*-
+{config, session_mgrs, fun() -> true end, []}.

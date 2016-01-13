@@ -1,0 +1,19 @@
+{sub_dirs,
+	[
+		"rel", 
+		"deps", 
+		"thrift",
+		"filer",
+		"api",
+	        "configdb",
+		"controller",
+	        "monitor"
+	]
+}.
+
+{deps,
+	[
+	eper
+	]
+}.
+

@@ -1,0 +1,76 @@
+%%%-------------------------------------------------------------------
+%%% @author adoor balasubramanian <balu@localhost.localdomain>
+%%% @copyright (C) 2014, adoor balasubramanian
+%%% @doc
+%%% Handler Module for config thrift service
+%%% This defines elight system boundary
+%%% All input parameters are validated here unless they are expected to be 
+%% validated by Thrift
+%%% @end
+%%% Created : 12 Nov 2014 by adoor balasubramanian <balu@localhost.localdomain>
+%%%-------------------------------------------------------------------
+-module(config).
+
+-export([handle_function/2, ping/0, init/0]).
+
+-include("../../common/common.hrl").
+-include ("../gen-erl/config_thrift.hrl").
+
+-include_lib("eunit/include/eunit.hrl").
+
+-type dbType() :: running | startup | default.
+
+-record(transform, {key    :: config_object(),
+		    user2sys :: fun(),
+		    sys2user :: fun()
+		   }
+       ).
+
+handle_function(Function, Args) when is_atom(Function), is_tuple(Args) ->
+    [A,B,C,_|S] = atom_to_list(Function),
+    Op = list_to_atom([A,B,C]),
+    Key = list_to_atom(S),
+    [Table|Rest] = tuple_to_list(Args),
+    apply_if_valid(Op, Table, Key, transform(Key,Rest)).
+
+transform (_Key, []) -> {ok, []};
+transform (Key, [Val]) ->
+    F = ets:lookup_element(validate, Key, #transform.user2sys),
+    F(Val).
+
+apply_if_valid(Op, Table, Key, {ok, L}) ->
+    response(Key, apply(configdb, Op, [Table, Key|L]));
+apply_if_valid(_Op, _Table, _Key, {error, Error}) ->
+    throw(#invalidInput{object = Error}).
+
+
+response(_Key, ok) -> ok;
+response(Key, {dupliacte,L}) ->
+    F = ets:lookup_element(validate, Key, #transform.sys2user),
+    Obj = [F(X)++", " || X <- L],
+    throw(#duplicateEntry{object = Obj});
+response(_Key, Reply) -> {reply, Reply}.
+
+
+
+init() ->
+    {ok, Transforms} = file:script("/home/balu/elight/lib/configdb/validate.config"),
+    ets:new(transform, [named_table]),
+    ets:insert(transform, Transforms).
+    
+
+ping() ->
+    "pong".
+
+ping_test() ->
+    true = code:add_path("thrift/ebin"),
+    true = code:add_path("api/ebin"),
+    ok = application:ensure_started(thrift),
+    ok = application:ensure_started(api),
+    {ok, Port} = application:get_env(api,config_tcp_port),
+    {ok, C0} = thrift_client_util:new( "localhost", 
+				       Port, 
+				       config_thrift,[]),
+    {C1, {ok, <<"pong">>} } = thrift_client:call (C0, ping, []),
+    {_C2, {ok, <<"pong">>} } = thrift_client:call (C1, ping, []).
+    

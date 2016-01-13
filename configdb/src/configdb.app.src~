@@ -1,0 +1,14 @@
+{application, configdb,
+ [
+  {description, "manages configuration dbs"},
+  {vsn, "1"},
+  {applications, [
+                  kernel,
+                  stdlib,
+		  mnesia
+                 ]
+  },
+
+  {mod, { configdb_app, [] } }
+
+ ]}.

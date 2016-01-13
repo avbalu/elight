@@ -1,0 +1,18 @@
+%% app generated at {2014,10,29} {21,59,6}
+{application,pkt,
+             [{description,"Network packet parsing library"},
+              {vsn,"0.4.2"},
+              {id,[]},
+              {modules,[pkt,pkt_802_1q,pkt_arp,pkt_dlt,pkt_ether,pkt_gre,
+                        pkt_icmp,pkt_icmp6,pkt_igmp,pkt_ipproto,pkt_ipv4,
+                        pkt_ipv6,pkt_ipv6_ah,pkt_ipv6_dstopts,pkt_ipv6_esp,
+                        pkt_ipv6_fragment,pkt_ipv6_hopopts,pkt_ipv6_routing,
+                        pkt_linux_cooked,pkt_llc,pkt_null,pkt_sctp,pkt_tcp,
+                        pkt_udp,pkt_vrrp]},
+              {registered,[]},
+              {applications,[kernel,stdlib]},
+              {included_applications,[]},
+              {env,[]},
+              {maxT,infinity},
+              {maxP,infinity}]}.
+

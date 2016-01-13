@@ -1,0 +1,13 @@
+D/api////
+D/deps////
+D/rel////
+D/controller////
+D/configdb////
+D/common////
+D/monitor////
+D/filer////
+/Makefile/1.6/Thu Jan 29 03:45:30 2015//
+/rebar.config/1.7/Wed Jan 28 23:21:04 2015//
+/eunit.ignore/1.1/Thu Jan 29 03:44:29 2015//
+/dialyzer.ignore-warnings/1.4/Tue Feb 10 00:55:04 2015//
+/compiler.ignore-warnings/1.3/Mon Feb 23 07:51:50 2015//

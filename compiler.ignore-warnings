@@ -1,0 +1,4 @@
+type dict/0 is deprecated and will be removed in OTP 18.0; use use dict:dict/0 or preferably dict:dict/2
+Compiled
+monitor_tests.erl
+monitor_tests.erl

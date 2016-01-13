@@ -1,0 +1,14 @@
+{application, configdb,
+ [
+  {description, "manages configuration dbs"},
+  {vsn, "1"},
+  {applications, [
+                  kernel,
+                  stdlib,
+		  mnesia
+                 ]
+  },
+  {env, [ {mnesia_wait_time, 5000} ]}, 
+  {mod, { configdb_app, [] } }
+
+ ]}.

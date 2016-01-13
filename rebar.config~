@@ -1,0 +1,15 @@
+{sub_dirs,
+	[
+		"rel", 
+		"deps", 
+		"controller",
+		"api"
+	]
+}.
+
+{deps,
+	[
+	{epcap, ".*", {git, "https://github.com/msantos/epcap"}}
+	]
+}.
+

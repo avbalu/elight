@@ -1,0 +1,28 @@
+%%%-------------------------------------------------------------------
+%%% @author adoor balasubramanian <balu@localhost.localdomain>
+%%% @copyright (C) 2015, adoor balasubramanian
+%%% @doc Filer App
+%%% This is implemeted as an applciation that can run anywhere
+%%% provoiding more distribution for horizontal scaling for compute 
+%% and storage
+%%%
+%%% @end
+%%% Created : 22 Jan 2015 by adoor balasubramanian <balu@localhost.localdomain>
+%%%-------------------------------------------------------------------
+
+
+
+{application, filer,
+ [
+  {description, "The filer applciation!"},
+  {vsn, "1"},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]
+  },
+  {mod, { filer_app, [] } },
+  {env, [ 
+	]
+  }
+ ]}.

@@ -1,0 +1,6 @@
+{filter,2,
+        {condition,undefined,undefined,undefined,undefined,undefined,
+                   undefined,undefined,undefined,undefined,undefined,
+                   undefined},
+        {action,0,2,2,100,0},
+        []}

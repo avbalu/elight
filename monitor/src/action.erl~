@@ -1,0 +1,53 @@
+%%%-------------------------------------------------------------------
+%%% @author adoor balasubramanian <balu@localhost.localdomain>
+%%% @copyright (C) 2015, adoor balasubramanian
+%%% @doc
+%%%
+%%% @end
+%%% Created : 25 Jan 2015 by adoor balasubramanian <balu@localhost.localdomain>
+%%%-------------------------------------------------------------------
+-module(action).
+
+-export([act/2]).
+
+
+-include("../../common/common.hrl").
+-include_lib("eunit/include/eunit.hrl").
+-include("../../api/gen-erl/api_types.hrl").
+
+-spec act( PcapRecords :: [binary()], 
+	     Match :: #filter{} | none) ->
+		   ok.
+act(_PcapRecords, none) ->
+    ok;
+act(PcapRecords, Filter) ->
+    store(PcapRecords, Filter),
+    notify(Filter).
+
+-spec store( PcapRecords :: [binary()], 
+	     Match :: #filter{} | none) ->
+		   ok.
+store(_PcapRecords, none) ->
+    ok;
+store(PcapRecords, #filter{logSession = undefined}) ->
+    ok;
+store(PcapRecords, #filter{id = Id} = Filter) ->
+    Name = integer_to_list(Id),
+    PcapFile = [?PCAP_FILE_HDR, lists:reverse(PcapRecords)],
+    Descriptor = io_lib:format("~p", [Filter]),
+    filer:store([#file{name = Name ++ ".pcap",
+		       data = PcapFile},
+		 #file{name = Name ++ ".descriptor",
+		       data = Descriptor}]).
+
+-spec notify(Filter :: #filter{}) -> ok.
+notify(#filter{action = #action{notify = undefined}}) ->
+    ok;
+notify(#filter{id = Id, action = #action{notify = C}}) ->
+    N = ets:update_counter(notify, #notify{filter_id = Id}, 1),
+    notify(Filter, C, N).
+
+notify(Filter, N, N) ->
+    event_mgr:notify(Filter).
+    
+	
