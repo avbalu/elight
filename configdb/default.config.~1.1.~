@@ -1,5 +1,0 @@
-%%-*-erlang-*-
-
-[
- { config, session_mgrs, [] }
-].

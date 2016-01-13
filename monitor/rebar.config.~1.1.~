@@ -1,7 +1,0 @@
-%% Erlang compiler options
-{erl_opts, [
-	    {i,"../common"},
-	    debug_info,
-	    {src_dirs, [ "src"]}
-	   ]
-}.
